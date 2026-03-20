@@ -7,6 +7,9 @@ create or replace procedure reservar_pista(
     arg_incluir_limpieza   varchar2
 ) is
     v_reserva_concurrente  number;
+
+    ex_usuario_inexistente exception;
+    pragma exception_init(ex_usuario_inexistente, -02291); -- ORA-02291: FK padre no encontrado
 begin
     -- Validación del intervalo
     if arg_fecha_fin < arg_fecha_ini then
@@ -19,7 +22,10 @@ begin
         into v_nombre_pista, v_tipo_pista, v_luz_nocturna
         from pistas
         where id_pista = arg_id_pista
-        for update; -- For update para hacer un select bloqueante
+        -- For update permite marcar para update la fila de los datos seleccionados, 
+        -- bloqueandolos para evitar que otra transacción concurrente los cambie
+        -- garantizando que se trabajan datos consistentes
+        for update;
     exception
         when no_data_found then
             raise_application_error(-20002, 'Pista inexistente.');
@@ -36,4 +42,18 @@ begin
     if v_reserva_concurrente > 0 then
         raise_application_error(-20004, 'La pista no esta disponible en ese intervalo.');
     end if;
+
+    -- Inserción de la reserva
+    begin
+        insert into reservas(idReserva, usuario, id_pista, fecha_ini, fecha_fin)
+        values (seq_reservas.nextval, arg_dni_usuario, arg_id_pista, arg_fecha_ini, arg_fecha_fin);
+    exception
+        when ex_usuario_inexistente then
+            raise_application_error(-20001, 'Usuario inexistente.');
+    end;
+
+    -- TODO
+    -- Calculo de importes
+    -- Validación de servicio de luz nocturna
+    -- Generación de factura
 end;
