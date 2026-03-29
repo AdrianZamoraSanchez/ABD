@@ -7,6 +7,14 @@ create or replace procedure reservar_pista(
     arg_incluir_limpieza   varchar2
 ) is
     v_reserva_concurrente  number;
+    v_nombre_pista         varchar(40);
+    v_tipo_pista           varchar(20);
+    v_luz_nocturna         char(1);
+    v_num_horas            number;
+    v_importe_pista        number;
+    v_precio_hora          number;
+    v_importe_luz          number;
+    v_importe_limp         number;
 
     ex_usuario_inexistente exception;
     pragma exception_init(ex_usuario_inexistente, -02291); -- ORA-02291: FK padre no encontrado
