@@ -150,6 +150,8 @@ create or replace procedure reservar_pista(
     v_precio_hora          number;
     v_importe_luz          number;
     v_importe_limp         number;
+    v_total                number;
+    v_num_factura          number;
 
     ex_usuario_inexistente exception;
     pragma exception_init(ex_usuario_inexistente, -02291); -- ORA-02291: FK padre no encontrado
@@ -195,10 +197,66 @@ begin
             raise_application_error(-20001, 'Usuario inexistente.');
     end;
 
-    -- TODO
-    -- Calculo de importes
     -- Validación de servicio de luz nocturna
+    if arg_incluir_luz = 'S' and v_luz_nocturna = 'N' then
+        raise_application_error(-20005, 'La pista no dispone de iluminacion nocturna.');
+    end if;
+
+    if arg_incluir_luz = 'S' then
+        select precio_fijo
+          into v_importe_luz
+          from bonos_servicio
+         where codigo_servicio = 'LUZ';
+    end if;
+
+    if arg_incluir_limpieza = 'S' then
+        select precio_fijo
+          into v_importe_limp
+          from bonos_servicio
+         where codigo_servicio = 'LIMP';
+    end if;
+
+    -- Cálculo importes
+    select precio_hora
+    into v_precio_hora
+    from tarifas
+    where tipo_pista = v_tipo_pista;
+
+    v_num_horas     := (arg_fecha_fin - arg_fecha_ini) * 24;
+    v_importe_pista := v_precio_hora * v_num_horas;
+
+    v_total := v_importe_pista + v_importe_luz + v_importe_limp;
+    
     -- Generación de factura
+    v_num_factura := seq_num_fact.nextval;
+
+    insert into facturas(nroFactura, importe, usuario)
+    values (v_num_factura, v_total, arg_dni_usuario);
+
+    insert into lineas_factura(nroFactura, concepto, importe)
+    values (
+        v_num_factura,
+        'Reserva de ' || to_char(v_num_horas) || ' horas de la pista ' || v_nombre_pista,
+        v_importe_pista
+    );
+
+    if arg_incluir_luz = 'S' then
+        insert into lineas_factura(nroFactura, concepto, importe)
+        values (
+            v_num_factura,
+            'Servicio de iluminacion nocturna',
+            v_importe_luz
+        );
+    end if;
+
+    if arg_incluir_limpieza = 'S' then
+        insert into lineas_factura(nroFactura, concepto, importe)
+        values (
+            v_num_factura,
+            'Servicio de limpieza final',
+            v_importe_limp
+        );
+    end if;
 end;
 /
 
