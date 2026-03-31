@@ -145,12 +145,12 @@ create or replace procedure reservar_pista(
     v_nombre_pista         varchar(40);
     v_tipo_pista           varchar(20);
     v_luz_nocturna         char(1);
-    v_num_horas            number;
-    v_importe_pista        number;
-    v_precio_hora          number;
-    v_importe_luz          number;
-    v_importe_limp         number;
-    v_total                number;
+    v_num_horas            number := 0;
+    v_importe_pista        number := 0;
+    v_precio_hora          number := 0;
+    v_importe_luz          number := 0;
+    v_importe_limp         number := 0;
+    v_total                number := 0;
     v_num_factura          number;
 
     ex_usuario_inexistente exception;
@@ -262,6 +262,7 @@ end;
 
 create or replace procedure test_reservar_pista is
 begin
+    -- Caso 1: Intervalo no válido
     begin
         inicializa_test;
         reservar_pista(
@@ -282,6 +283,7 @@ begin
             end if;
     end;
 
+    -- Caso 2: Pista no existe
     begin
         inicializa_test;
         reservar_pista(
@@ -302,6 +304,7 @@ begin
             end if;
     end;
 
+    -- Caso 3: Usuario no existente
     begin
         inicializa_test;
         reservar_pista(
@@ -322,6 +325,7 @@ begin
             end if;
     end;
 
+    -- Caso 4: Solapamiento de horarios de reserva
     begin
         inicializa_test;
         reservar_pista(
@@ -342,6 +346,7 @@ begin
             end if;
     end;
 
+    -- Caso 5: Disponibilidad de luz
     begin
         inicializa_test;
         reservar_pista(
@@ -362,6 +367,7 @@ begin
             end if;
     end;
 
+    -- Caso 6: Factura correcta con extras
     declare
         v_total number;
         v_lineas number;
@@ -387,6 +393,34 @@ begin
     exception
         when others then
             dbms_output.put_line('MAL: reserva correcta con extras -> ' || sqlcode || ' ' || sqlerrm);
+    end;
+
+    -- (extra) Caso 7: Factura correcta sin extras 
+    declare
+        v_total number;
+        v_lineas number;
+    begin
+        inicializa_test;
+        reservar_pista(
+            '12345678A',
+            1,
+            to_date('12/03/2026 10:00', 'dd/mm/yyyy hh24:mi'),
+            to_date('12/03/2026 12:00', 'dd/mm/yyyy hh24:mi'),
+            'N',
+            'N'
+        );
+
+        select importe into v_total from facturas where nroFactura = 3;
+        select count(*) into v_lineas from lineas_factura where nroFactura = 3;
+
+        if v_total = 24 and v_lineas = 1 then
+            dbms_output.put_line('OK: reserva correcta sin extras');
+        else
+            dbms_output.put_line('MAL: reserva correcta sin extras -> total=' || v_total || ' lineas=' || v_lineas);
+        end if;
+    exception
+        when others then
+            dbms_output.put_line('MAL: reserva correcta sin extras -> ' || sqlcode || ' ' || sqlerrm);
     end;
 end;
 /
