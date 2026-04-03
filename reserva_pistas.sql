@@ -184,6 +184,10 @@ begin
         and r.fecha_ini < arg_fecha_fin
         and r.fecha_fin > arg_fecha_ini;
 
+    -- Se comprueba disponibilidad con el bloqueado para evitar que dos reservas concurrentes
+    -- puedan consultar disponibilidad al mismo tiempo y encontrar el mismo hueco de horario
+    -- disponible, lo que provocaría que se hagan dos (o más) reservas en el mismo horario. 
+
     if v_reserva_concurrente > 0 then
         raise_application_error(-20004, 'La pista no esta disponible en ese intervalo.');
     end if;
@@ -257,6 +261,15 @@ begin
             v_importe_limp
         );
     end if;
+
+    -- Los datos de la reserva se mantienen coherentes aunque existan reservas y facturas previas
+    -- porque se evitan reservas incompatibles y los identificadores son generados por secuencias
+    -- de forma que no afectan a los datos ya existentes.
+
+exception
+    when others then
+        rollback; -- Vuelve a estado seguro
+        raise; -- Devuelve la excepcion al nivel superior 
 end;
 /
 
